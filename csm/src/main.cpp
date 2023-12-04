@@ -34,7 +34,7 @@ int main(int argc, const char* argv[]) noexcept
 			true					// Resizable
 		};
 
-#ifdef _DEBUG
+#ifndef NDEBUG
 		bool enableValidationLayers = true;
 #else
 		bool enableValidationLayers = false;
