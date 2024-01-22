@@ -65,7 +65,7 @@ Assets::UniformBufferObject Renderer::GetUniformBufferObject(const VkExtent2D ex
     auto curTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(curTime - startTime).count();*/
 
-    ubo.model = glm::scale(glm::mat4(1.f), glm::vec3(0.1f));
+    ubo.model = glm::scale(glm::mat4(1.f), glm::vec3(0.05f));
     // ubo.model = glm::rotate(ubo.model, time * glm::radians(60.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.view = camera_->getViewMatrix();
     ubo.proj = camera_->getProjMatrix();
@@ -86,8 +86,9 @@ void Renderer::LoadScene()
     Assets::Model leaves = Assets::Model::LoadModel("../models/tree/MapleTreeLeaves.obj");
     Assets::Model stem = Assets::Model::LoadModel("../models/tree/MapleTreeStem.obj");
     Assets::Model floor = Assets::Model::LoadModel("../models/floor.obj");
+    Assets::Model box = Assets::Model::LoadModel("../models/box.obj");
 
-    std::vector<Assets::Model> models { floor, stem, leaves };
+    std::vector<Assets::Model> models { floor, box, stem, leaves };
     std::vector<Assets::Texture> textures;
     textures.push_back(Assets::Texture::LoadTexture("../models/tree/maple_leaf.png", vk::SamplerConfig()));
     textures.push_back(Assets::Texture::LoadTexture("../models/tree/maple_leaf_Mask.png", vk::SamplerConfig()));
@@ -160,7 +161,7 @@ void Renderer::Render(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 
                     modelCount++;
                     depthPipeline_->pushBlock.modelID = modelCount;
-                    if (modelCount > 1) {
+                    if (modelCount > 2) {
                         for (int i = 0; i < 3; i++) {
                             depthPipeline_->pushBlock.position = position[i];
                             vkCmdPushConstants(commandBuffer, depthPipeline_->PipelineLayout().Handle(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -240,7 +241,7 @@ void Renderer::Render(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 
                 modelCount++;
                 scenePipeline_->pushBlock.modelID = modelCount;
-                if (modelCount > 1) {
+                if (modelCount > 2) {
                     for (int i = 0; i < 3; i++) {
                         scenePipeline_->pushBlock.position = position[i];
                         vkCmdPushConstants(commandBuffer, scenePipeline_->PipelineLayout().Handle(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -301,20 +302,17 @@ void Renderer::UpdateLight()
     float time = std::chrono::duration<float, std::chrono::seconds::period>(curTime - startTime).count();
 
     float angle = glm::radians(time * 15.f);
-    float radius = 30.f;
+    float radius = 20.f;
     lightPos = glm::vec3(std::cos(angle) * radius, radius, std::sin(angle) * radius);
 }
 
 void Renderer::UpdateCascades()
 {
-    float cascadeSplits[SHADOW_MAP_CASCADE_COUNT];
+    float cascadeSplits[SHADOW_MAP_CASCADE_COUNT] /*= {0.02f, 0.12f, 0.45f, 1.f}*/;
 
     float nearClip = camera_->getNear();
     float farClip = camera_->getFar();
     float clipRange = farClip - nearClip;
-
-    // auto pos = camera_->getViewPos();
-    // std::cout << pos[0] << " " << pos[1] << " " << pos[2] << " \n";
 
     float minZ = nearClip;
     float maxZ = nearClip + clipRange;
@@ -337,13 +335,13 @@ void Renderer::UpdateCascades()
         float splitDist = cascadeSplits[i];
 
         glm::vec3 frustumCorners[8] = {
-            glm::vec3(-1.0f, 1.0f, 0.0f),
-            glm::vec3(1.0f, 1.0f, 0.0f),
-            glm::vec3(1.0f, -1.0f, 0.0f),
+            glm::vec3(-1.0f,  1.0f, 0.0f),
+            glm::vec3( 1.0f,  1.0f, 0.0f),
+            glm::vec3( 1.0f, -1.0f, 0.0f),
             glm::vec3(-1.0f, -1.0f, 0.0f),
-            glm::vec3(-1.0f, 1.0f, 1.0f),
-            glm::vec3(1.0f, 1.0f, 1.0f),
-            glm::vec3(1.0f, -1.0f, 1.0f),
+            glm::vec3(-1.0f,  1.0f, 1.0f),
+            glm::vec3( 1.0f,  1.0f, 1.0f),
+            glm::vec3( 1.0f, -1.0f, 1.0f),
             glm::vec3(-1.0f, -1.0f, 1.0f),
         };
 
@@ -360,25 +358,32 @@ void Renderer::UpdateCascades()
             frustumCorners[i] = frustumCorners[i] + (dist * lastSplitDist);
         }
 
-        // Get frustum center
-        glm::vec3 frustumCenter = glm::vec3(0.0f);
-        for (uint32_t i = 0; i < 8; i++) {
-            frustumCenter += frustumCorners[i];
-        }
-        frustumCenter /= 8.0f;
+        // Get frustum sphere bound center
+        float a2 = pow(glm::length(frustumCorners[2] - frustumCorners[0]), 2.0);
+        float b2 = pow(glm::length(frustumCorners[6] - frustumCorners[4]), 2.0);
+        float len = (splitDist - lastSplitDist) * range;
+        float x = len * 0.5f + (a2 - b2) / (8.f * len);
 
-        float radius = 0.0f;
-        for (uint32_t i = 0; i < 8; i++) {
-            float distance = glm::length(frustumCorners[i] - frustumCenter);
-            radius = glm::max(radius, distance);
-        }
-        radius = std::ceil(radius * 16.f) / 16.0f;
-        glm::vec3 maxExtents = glm::vec3(radius);
-        glm::vec3 minExtents = -maxExtents;
+        float zDistance = len - x;
+        glm::vec3 sphereCenterVS = glm::vec3(0.f, 0.f, minZ + zDistance);
+        glm::vec3 sphereCenterWS = camera_->getViewPos() + camera_->getViewDir() * sphereCenterVS.z;
 
+        float sphereRadius = std::sqrtf(zDistance * zDistance + (a2 * 0.25f));
+
+        // https://learn.microsoft.com/zh-cn/windows/win32/dxtecharts/common-techniques-to-improve-shadow-depth-maps
+        float worldUnitsPerPixel = sphereRadius * 2.f / (float)SHADOWMAP_DIM;
+        sphereRadius = std::floor(sphereRadius / worldUnitsPerPixel) * worldUnitsPerPixel;
         glm::vec3 lightDir = normalize(lightPos);
-        glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter + lightDir * radius, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-        glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, maxExtents.y, minExtents.y, 0.0f, maxExtents.z - minExtents.z);
+        glm::mat4 shadowView = glm::lookAt(glm::vec3(0.f), -lightDir, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::vec3 sphereCenterLS = shadowView * glm::vec4(sphereCenterWS, 1.0f);
+        sphereCenterLS -= glm::vec3(fmodf(sphereCenterLS.x, worldUnitsPerPixel), fmodf(sphereCenterLS.y, worldUnitsPerPixel), 0.f);
+        glm::mat4 invShadowView = glm::inverse(shadowView);
+        sphereCenterWS = glm::vec3(invShadowView * glm::vec4(sphereCenterLS, 1.f));
+
+        // TODO : adjust backDistance to include all objects which are before lightPos.
+        float backDistance = sphereRadius;
+        glm::mat4 lightViewMatrix = glm::lookAt(sphereCenterWS + lightDir * backDistance, sphereCenterWS, glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4 lightOrthoMatrix = glm::ortho(-sphereRadius, sphereRadius, -sphereRadius, sphereRadius, 0.0f, sphereRadius * 2.f);
 
         shadowUBO_.splitDepth[i] = (camera_->getNear() + splitDist * clipRange) * -1.f;
         shadowUBO_.viewProjMatrix[i] = lightOrthoMatrix * lightViewMatrix;

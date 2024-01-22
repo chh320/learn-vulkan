@@ -66,7 +66,7 @@ namespace vk {
 
 		image_.reset(new class Image(device, extent, format_, VK_IMAGE_TILING_OPTIMAL, 
 			shadowMap ? (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) 
-			: (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT), 
+			: (VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
 			1, arrayLayers));
 		imageMemory_.reset(new DeviceMemory(image_->AllocateMemory(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)));
 		imageView_.reset(new class ImageView(device, image_->Handle(), format_, VK_IMAGE_ASPECT_DEPTH_BIT, arrayLayers, 0, arrayLayers > 1? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D));

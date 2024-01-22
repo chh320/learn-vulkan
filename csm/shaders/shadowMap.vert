@@ -28,6 +28,11 @@ void main(){
             model[i][i] *= 300;
         }
     }
+    if(pushConsts.modelID == 2){
+        for(int i = 0; i < 3; i++){
+            model[i][i] *= 2;
+        }
+    }
 	uv = aUV;
     vec3 pos = aPos + pushConsts.position;
 	gl_Position = lightUBO.lightProjView[pushConsts.cascadeIndex] * model * vec4(pos, 1.0);

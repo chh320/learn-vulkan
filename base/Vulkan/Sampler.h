@@ -14,7 +14,7 @@ namespace vk
 		VkSamplerAddressMode AddressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		VkSamplerAddressMode AddressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		bool AnisotropyEnable = true;
-		float MaxAnisotropy = 16;
+		float MaxAnisotropy = 1.0f;
 		VkBorderColor BorderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
 		bool UnnormalizedCoordinates = false;
 		bool CompareEnable = false;
@@ -22,7 +22,7 @@ namespace vk
 		VkSamplerMipmapMode MipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 		float MipLodBias = 0.0f;
 		float MinLod = 0.0f;
-		float MaxLod = 0.0f;
+		float MaxLod = 1.0f;
 	};
 
 	class Sampler final

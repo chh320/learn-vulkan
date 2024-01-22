@@ -10,6 +10,8 @@ layout(location = 3) in vec3 viewPos;
 
 layout(location = 0) out vec4 outColor;
 
+
+
 layout(binding = 1) uniform sampler2D[] tex;
 layout(binding = 2) uniform sampler2DArray shadowMap;
 
@@ -17,7 +19,7 @@ layout(binding = 3) uniform shadowUBO{
     vec4 splitDepth;
     mat4 lightViewProj[SHADOW_MAP_CASCADE_COUNT];
     vec3 lightDir;
-} ubo;
+} sUbo;
 
 layout(push_constant) uniform PushConsts{
     layout(offset = 12) int modelID;
@@ -46,9 +48,10 @@ float Shadow(vec4 shadowCoord, vec2 offset, int cascadedID){
     return shadow;
 }
 
+// 3x3 PCF
 float PCF(vec4 shadowCoord, int cascadedID){
     vec2 texDim = textureSize(shadowMap, 0).xy;
-    float scale = 0.75;
+    float scale = 0.5;
     float dx = scale * 1.0 / float(texDim.x);
     float dy = scale * 1.0 / float(texDim.y);
 
@@ -70,10 +73,11 @@ void main(){
         case 1:
             color = vec4(0.8, 0.7, 0.6, 1.0);    
             break;
-        case 2:
+
+        case 3:
             color = texture(tex[2], uv);
             break;
-        case 3:
+        case 4:
             float alpha = texture(tex[1], uv).r;
             if(alpha < 0.5) discard;
             color = texture(tex[0], uv);
@@ -82,26 +86,19 @@ void main(){
 
     int cascadedID = 0;
     for(int i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; i++){
-        if(viewPos.z < ubo.splitDepth[i])
+        if(viewPos.z < sUbo.splitDepth[i])
             cascadedID = i + 1;
     }
-
-    vec4 shadowCoord = biasMat * ubo.lightViewProj[cascadedID] * vec4(worldFragPos, 1.0);
+    vec4 shadowCoord = biasMat * sUbo.lightViewProj[cascadedID] * vec4(worldFragPos, 1.0);
     float shadow = PCF(shadowCoord / shadowCoord.w, cascadedID);
 
 
     vec3 N = normalize(normal);
-	vec3 L = normalize(-ubo.lightDir);
-	vec3 H = normalize(L + viewPos);
+	vec3 L = normalize(-sUbo.lightDir);
 	float diffuse = max(dot(N, L), ambient);
 	vec3 lightColor = vec3(1.0);
 
-    vec3 R = normalize(reflect(-L, N));
-    vec3 h2 = normalize(R + viewPos);
-    float spec = pow(max(dot(h2, N), 0.0), 64.0);
-    vec3 specular = spec * lightColor;
-
-	outColor.rgb = max(lightColor * ((diffuse + specular) * color.rgb), vec3(0.0));
+	outColor.rgb = max(lightColor * (diffuse * color.rgb), vec3(0.0));
 	outColor.rgb *= shadow;
 	outColor.a = color.a;
 

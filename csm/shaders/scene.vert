@@ -29,7 +29,11 @@ void main(){
             model[i][i] *= 300;
         }
     }
-
+    if(consts.modelID == 2){
+        for(int i = 0; i < 3; i++){
+            model[i][i] *= 2;
+        }
+    }
     vec3 pos = aPos + consts.offset;
     worldFragPos = vec3(model * vec4(pos, 1.0));
     viewPos = vec3(ubo.view * model * vec4(pos, 1.0));
