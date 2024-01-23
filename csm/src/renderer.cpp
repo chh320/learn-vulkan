@@ -346,7 +346,7 @@ void Renderer::UpdateCascades()
         };
 
         // Project frustum corners into world space
-        glm::mat4 invCam = glm::inverse(camera_->getProjMatrix() * camera_->getViewMatrix());
+        glm::mat4 invCam = glm::inverse(camera_->getProjMatrix()/* * camera_->getViewMatrix()*/);
         for (uint32_t i = 0; i < 8; i++) {
             glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[i], 1.0f);
             frustumCorners[i] = invCorner / invCorner.w;
@@ -387,6 +387,7 @@ void Renderer::UpdateCascades()
 
         shadowUBO_.splitDepth[i] = (camera_->getNear() + splitDist * clipRange) * -1.f;
         shadowUBO_.viewProjMatrix[i] = lightOrthoMatrix * lightViewMatrix;
+        shadowUBO_.splitSphereBound[i] = glm::vec4(sphereCenterWS, sphereRadius);
 
         lightUBO_.viewProjMatrix[i] = shadowUBO_.viewProjMatrix[i];
 

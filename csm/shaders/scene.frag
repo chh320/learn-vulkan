@@ -10,14 +10,13 @@ layout(location = 3) in vec3 viewPos;
 
 layout(location = 0) out vec4 outColor;
 
-
-
 layout(binding = 1) uniform sampler2D[] tex;
 layout(binding = 2) uniform sampler2DArray shadowMap;
 
 layout(binding = 3) uniform shadowUBO{
     vec4 splitDepth;
     mat4 lightViewProj[SHADOW_MAP_CASCADE_COUNT];
+    vec4 splitSphereBound[SHADOW_MAP_CASCADE_COUNT];
     vec3 lightDir;
 } sUbo;
 
@@ -73,7 +72,6 @@ void main(){
         case 1:
             color = vec4(0.8, 0.7, 0.6, 1.0);    
             break;
-
         case 3:
             color = texture(tex[2], uv);
             break;
@@ -85,9 +83,18 @@ void main(){
     }
 
     int cascadedID = 0;
+    /*
     for(int i = 0; i < SHADOW_MAP_CASCADE_COUNT - 1; i++){
         if(viewPos.z < sUbo.splitDepth[i])
             cascadedID = i + 1;
+    }*/
+    
+    for(int i = 0; i < SHADOW_MAP_CASCADE_COUNT; i++){
+        float distance = length(worldFragPos - sUbo.splitSphereBound[i].xyz);
+        if(distance < sUbo.splitSphereBound[i].w){
+            cascadedID = i;
+            break;
+        }
     }
     vec4 shadowCoord = biasMat * sUbo.lightViewProj[cascadedID] * vec4(worldFragPos, 1.0);
     float shadow = PCF(shadowCoord / shadowCoord.w, cascadedID);

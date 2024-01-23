@@ -80,6 +80,7 @@ private:
 	struct ShadowUBO {
 		glm::vec4 splitDepth;
 		glm::mat4 viewProjMatrix[SHADOW_MAP_CASCADE_COUNT];
+		glm::vec4 splitSphereBound[SHADOW_MAP_CASCADE_COUNT];
 		glm::vec3 lightDir;
 	} shadowUBO_;
 
